@@ -1,7 +1,6 @@
-# Your name: 
-# Your student id:
-# Your email:
-# List who you have worked with on this homework:
+# Your name: Claudia VanValkenburg
+# Your student id: 07533756
+# Your email: vanvalce@umich.edu
 
 import matplotlib.pyplot as plt
 import os
@@ -15,7 +14,20 @@ def load_rest_data(db):
     and each inner key is a dictionary, where the key:value pairs should be the category, 
     building, and rating for the restaurant.
     """
-    pass
+    rest_data = {}
+    with open(db, 'r') as file:
+        lines = file.readlines()
+        for line in lines:
+            columns = line.strip().split(',')
+            name = columns[0]
+            category = columns[1]
+            building = int(columns[2])
+            rating = float(columns[3])
+            rest_data[name] = {'category': category, 'building': building, 'rating': rating}
+    print(rest_data)
+    return rest_data
+
+
 
 def plot_rest_categories(db):
     """
