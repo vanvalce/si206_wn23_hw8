@@ -18,11 +18,11 @@ def load_rest_data(db):
     with open(db, 'r') as file:
         lines = file.readlines()
         for line in lines:
-            columns = line.strip().split(',')
-            name = columns[0]
-            category = columns[1]
-            building = int(columns[2])
-            rating = float(columns[3])
+            cols = line.strip().split(',')
+            name = cols[0]
+            category = cols[1]
+            building = int(cols[2])
+            rating = float(cols[3])
             rest_data[name] = {'category': category, 'building': building, 'rating': rating}
     print(rest_data)
     return rest_data
@@ -35,7 +35,24 @@ def plot_rest_categories(db):
     restaurant categories and the values should be the number of restaurants in each category. The function should
     also create a bar chart with restaurant categories and the count of number of restaurants in each category.
     """
-    pass
+    rest_data = load_rest_data(db)
+    rest_cats = {}
+    for restaurant in rest_data.values():
+        cat = restaurant['category']
+        if cat in rest_cats:
+            rest_cats[cat] += 1
+        else:
+            rest_cats[cat] = 1
+
+    cats = list(rest_cats.keys())
+    counts = list(rest_cats.values())
+    counts_sort, cats_sort = zip(*sorted(zip(counts, cats), key = lambda x: x[0], reverse=True))
+    plt.bar(cats_sort, counts_sort)
+    plt.xlabel('Categories')
+    plt.ylabel('Counts')
+    plt.title('Restaurant Categories vs Quantity')
+    plt.xticks(rotation = 90)
+    plt.show()
 
 def find_rest_in_building(building_num, db):
     '''
