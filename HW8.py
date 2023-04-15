@@ -14,20 +14,19 @@ def load_rest_data(db):
     and each inner key is a dictionary, where the key:value pairs should be the category, 
     building, and rating for the restaurant.
     """
+    conn = sqlite3.connect(db)
+    cur = conn.cursor()
+    cur.execute('''SELECT restaurants.name, categories.category, buildings.building, restaurants.rating '''
+            '''FROM restaurants '''
+            '''JOIN categories ON restaurants.category_id = categories.id '''
+            '''JOIN buildings ON restaurants.building_id = buildings.id;''')
+    lines = cur.fetchall()
     rest_data = {}
-    with open(db, 'r') as file:
-        lines = file.readlines()
-        for line in lines:
-            cols = line.strip().split(',')
-            name = cols[0]
-            category = cols[1]
-            building = int(cols[2])
-            rating = float(cols[3])
-            rest_data[name] = {'category': category, 'building': building, 'rating': rating}
-    print(rest_data)
+    for name, category, building, rating in lines:
+        rest_data[name] = {'category': category, 'building':building, 'rating': rating}
+    cur.close()
+    conn.close()
     return rest_data
-
-
 
 def plot_rest_categories(db):
     """
@@ -35,24 +34,24 @@ def plot_rest_categories(db):
     restaurant categories and the values should be the number of restaurants in each category. The function should
     also create a bar chart with restaurant categories and the count of number of restaurants in each category.
     """
-    rest_data = load_rest_data(db)
-    rest_cats = {}
-    for restaurant in rest_data.values():
-        cat = restaurant['category']
-        if cat in rest_cats:
-            rest_cats[cat] += 1
-        else:
-            rest_cats[cat] = 1
-
-    cats = list(rest_cats.keys())
-    counts = list(rest_cats.values())
-    counts_sort, cats_sort = zip(*sorted(zip(counts, cats), key = lambda x: x[0], reverse=True))
-    plt.bar(cats_sort, counts_sort)
-    plt.xlabel('Categories')
-    plt.ylabel('Counts')
-    plt.title('Restaurant Categories vs Quantity')
-    plt.xticks(rotation = 90)
+    conn = sqlite3.connect(db)
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT categories.category, COUNT(restaurants.id) AS count FROM categories
+        JOIN restaurants ON categories.id = restaurants.category_id
+        GROUP BY categories.category ORDER BY count ''')
+    categories = cur.fetchall()
+    cat_dict = dict(categories)
+    conn.close()
+    fig, ax = plt.subplots(figsize=(12,6))
+    fig.subplots_adjust(wspace=.6, left = .4)
+    ax.barh(list(cat_dict.keys()), list(cat_dict.values()))
+    ax.set_xlabel("Number of Restaurants")
+    ax.set_ylabel("Restaurant Categories")
+    ax.set_xlim([0,5])
+    ax.set_title("Types of Restaurant on South University Ave")
     plt.show()
+    return cat_dict
 
 def find_rest_in_building(building_num, db):
     '''
@@ -63,13 +62,14 @@ def find_rest_in_building(building_num, db):
     conn = sqlite3.connect(db)
     cur = conn.cursor()
     cur.execute(
-        '''SELECT name FROM restaurants WHERE building = ?
-        0RDER BY rating DESC''', (building_num,))
+        '''SELECT restaurants.name FROM restaurants 
+        JOIN buildings ON restaurants.building_id = buildings.id
+        WHERE buildings.building = ?
+        ORDER BY restaurants.rating DESC''', (building_num,))
     results = cur.fetchall()
     cur.close()
     conn.close()
-    for row in results:
-        names = row[0]
+    names = [row[0]for row in results]
     return names
 
 #EXTRA CREDIT
@@ -84,11 +84,63 @@ def get_highest_rating(db): #Do this through DB as well
     The second bar chart displays the buildings along the y-axis and their ratings along the x-axis 
     in descending order (by rating).
     """
-    pass
+    conn = sqlite3.connect(db)
+    cur = conn.cursor()
+    cur.execute('''SELECT categories.category, AVG(restaurants.rating) as avg_rating
+                FROM categories
+                JOIN restaurants ON categories.id = restaurants.category_id
+                GROUP BY categories.category ORDER BY AVG (restaurants.rating) DESC''')
+    cat_results = cur.fetchall()
+    cur.execute('''SELECT categories.category, AVG(restaurants.rating) as avg_rating
+                FROM categories
+                JOIN restaurants ON categories.id = restaurants.category_id
+                GROUP BY categories.category ORDER BY AVG (restaurants.rating) DESC''')
+    high_cat = cur.fetchone()
+    categories = [row[0] for row in cat_results]
+    cat_avgs = [row[1] for row in cat_results]
+    cur.execute('''SELECT buildings.building, AVG(restaurants.rating) as avg_rating 
+                FROM buildings
+                JOIN restaurants ON buildings.id = restaurants.building_id
+                GROUP BY buildings.building ORDER BY AVG (restaurants.rating) DESC''')
+    build_results = cur.fetchall()
+    cur.execute('''SELECT buildings.building, AVG(restaurants.rating) as avg_rating 
+                FROM buildings
+                JOIN restaurants ON buildings.id = restaurants.building_id
+                GROUP BY buildings.building ORDER BY AVG (restaurants.rating) DESC''')
+    high_build = cur.fetchone()
+    buildings = [row[0] for row in build_results]
+    build_avgs = [row[1] for row in build_results]
+    fig, (ax1, ax2) = plt.subplots(2,1, figsize=(10,8))
+    fig.subplots_adjust(wspace=.1, hspace = .5, left=.3)
+    ax1.set_title("Average Restaurant Ratings by Category")
+    ax1.set_xlabel("Ratings")
+    ax1.set_ylabel("Categories")
+    cat_y_pos = range(len(categories))
+    ax1.set_xlim([0,5])
+    ax1.barh(cat_y_pos, cat_avgs[::-1], align = 'center')
+    ax1.set_yticks(cat_y_pos)
+    ax1.set_yticklabels(categories)
+
+    
+    ax2.set_title("Average Restaurant Ratings by Building")
+    ax2.set_xlabel("Ratings")
+    ax2.set_ylabel("Buildings")
+    build_y_pos = range(len(buildings))
+    ax2.set_xlim([0,5])
+    ax2.set_ylim([-1,len(buildings)])
+    ax2.barh(build_y_pos, build_avgs[::-1], align = 'center')
+    ax2.set_yticks(build_y_pos)
+    ax2.set_yticklabels(buildings)
+
+    plt.subplots_adjust(wspace = .6)
+
+    cur.close()
+    conn.close()
+    return [(high_cat[0], high_cat[1]), (high_build[0], high_build[1])]
 
 #Try calling your functions here
 def main():
-    pass
+    db = "South_U_Restaurants.db"
 
 class TestHW8(unittest.TestCase):
     def setUp(self):
